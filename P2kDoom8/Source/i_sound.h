@@ -39,6 +39,10 @@
 #include "sounds.h"
 #include "doomtype.h"
 
+#if defined(P2K)
+#include <apps.h>
+#endif
+
 // Init at program start...
 void I_InitSound(void);
 void I_InitSound2(void);
@@ -52,6 +56,19 @@ void I_ShutdownSound(void);
 
 // Starts a sound in a particular sound channel.
 int16_t I_StartSound(sfxenum_t id, int16_t channel, int16_t vol, int16_t sep);
+
+// Stops a sound channel.
+void I_StopSound(int16_t channel);
+
+// Checks whether a platform sound channel is active.
+boolean I_SoundIsPlaying(int16_t channel);
+
+// Updates platform sound backend.
+void I_UpdateSound(void);
+
+#if defined(P2K)
+UINT32 I_HandleSoundEvent(EVENT_STACK_T *ev_st, APPLICATION_T *app);
+#endif
 
 
 //

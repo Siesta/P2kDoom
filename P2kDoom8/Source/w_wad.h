@@ -47,6 +47,7 @@ void W_Init(void);
 void W_Shutdown(void);
 
 int16_t           PUREFUNC W_GetNumForName(const char *name);
+int16_t           PUREFUNC W_CheckNumForName(const char *name);
 const char __far* PUREFUNC W_GetNameForNum(       int16_t num);
 uint16_t          PUREFUNC W_LumpLength(          int16_t num);
 boolean           PUREFUNC W_IsLumpCached(        int16_t num);

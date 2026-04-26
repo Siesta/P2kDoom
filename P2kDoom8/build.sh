@@ -58,7 +58,7 @@ build_argon() {
 	echo -e "\033[32mBuilding for P2K/Argon...\033[0m"
 	for res in "240x160" "176x220" "220x176" "240x320" "240x320E" "320x240"; do
 		make -f Makefile.ea1 clean
-		RES="$res" GFX=NVIDIA QUALITY=MID make -f Makefile.ea1
+		RES="$res" GFX=DAL QUALITY=MID make -f Makefile.ea1
 		mv *.elf "Release/Argon" 2>/dev/null || true
 		make -f Makefile.ea1 clean
 	done
@@ -99,12 +99,12 @@ main() {
 
 	case "$1" in
 		""|"all")
-			build_sdl 1
-			build_sdl 2
-			build_sdl 3
-			build_neptune
-			build_neptune_iram
-			build_rainbow
+			#build_sdl 1
+			#build_sdl 2
+			#build_sdl 3
+			#build_neptune
+			#build_neptune_iram
+			#build_rainbow
 			build_argon
 			;;
 		"rainbow")

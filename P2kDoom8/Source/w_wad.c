@@ -288,10 +288,10 @@ uint16_t PUREFUNC W_LumpLength(int16_t num)
 }
 
 
-// W_GetNumForName
-// bombs out if not found.
+// W_CheckNumForName
+// Returns -1 if not found.
 //
-int16_t PUREFUNC W_GetNumForName(const char *name)
+int16_t PUREFUNC W_CheckNumForName(const char *name)
 {
 	char name8[8];
 	strncpy(name8, name, sizeof(name8));
@@ -308,8 +308,21 @@ int16_t PUREFUNC W_GetNumForName(const char *name)
 		}
 	}
 
-	I_Error("W_GetNumForName: %.8s not found", name);
 	return -1;
+}
+
+
+// W_GetNumForName
+// bombs out if not found.
+//
+int16_t PUREFUNC W_GetNumForName(const char *name)
+{
+	const int16_t lumpnum = W_CheckNumForName(name);
+
+	if (lumpnum < 0)
+		I_Error("W_GetNumForName: %.8s not found", name);
+
+	return lumpnum;
 }
 
 

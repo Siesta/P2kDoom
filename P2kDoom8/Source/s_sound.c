@@ -98,7 +98,11 @@ int16_t snd_MusicVolume = 15;
 
 
 // number of channels available
+#if defined(P2K)
+static const int16_t numChannels = 3;
+#else
 static const int16_t numChannels = 1;
+#endif
 
 //
 // Internals.
@@ -226,6 +230,7 @@ static void S_StartSoundAtVolume(mobj_t __far* origin, sfxenum_t sfx_id, int16_t
         if (!S_AdjustSoundParams(_g_player.mo, origin, &volume, &sep))
             return;
 
+#if !defined(P2K)
     // kill old sound
     for (cnum=0 ; cnum<numChannels ; cnum++)
         if (channels[cnum].sfxinfo && channels[cnum].origin == origin &&
@@ -234,6 +239,7 @@ static void S_StartSoundAtVolume(mobj_t __far* origin, sfxenum_t sfx_id, int16_t
             S_StopChannel(cnum);
             break;
         }
+#endif
 
     // try to find a channel
     cnum = S_getChannel(origin, sfx, is_pickup);
@@ -246,6 +252,10 @@ static void S_StartSoundAtVolume(mobj_t __far* origin, sfxenum_t sfx_id, int16_t
     {
         channels[cnum].handle = h;
         channels[cnum].tickend = (_g_gametic + sfx->ticks);
+    }
+    else
+    {
+        S_StopChannel(cnum);
     }
 
 }
@@ -307,9 +317,13 @@ static boolean S_SoundIsPlaying(int16_t cnum)
 
     if(channel->sfxinfo)
     {
+#if defined(P2K)
+        return I_SoundIsPlaying(cnum);
+#else
         int32_t ticknow = _g_gametic;
 
-        return (channel->tickend < ticknow);
+        return (ticknow <= channel->tickend);
+#endif
     }
 
     return false;
@@ -325,6 +339,8 @@ void S_UpdateSounds(void)
 	//jff 1/22/98 return if sound is not enabled
 	if (nosfxparm)
 		return;
+
+	I_UpdateSound();
 	
 	for (cnum=0 ; cnum<numChannels ; cnum++)
 	{
@@ -432,6 +448,8 @@ static void S_StopChannel(int16_t cnum)
 
     if (c->sfxinfo)
     {
+        I_StopSound(cnum);
+
         // check to see
         //  if other channels are playing the sound
         for (i=0 ; i<numChannels ; i++)
@@ -532,6 +550,25 @@ static int16_t S_getChannel(void __far* origin, const sfxinfo_t *sfxinfo, boolea
     if (nosfxparm)
         return -1;
 
+#if defined(P2K)
+    for (cnum=0; cnum<numChannels; cnum++)
+    {
+        if (channels[cnum].sfxinfo && !I_SoundIsPlaying(cnum))
+        {
+            channels[cnum].sfxinfo = NULL;
+            channels[cnum].tickend = 0;
+            channels[cnum].handle = 0;
+        }
+    }
+
+    // The GC audio path opens asynchronously, so do not kill an older sound from
+    // the same origin while a free channel may still exist.
+    for (cnum=0; cnum<numChannels && channels[cnum].sfxinfo; cnum++)
+        ;
+
+    if (cnum == numChannels)
+        return -1;
+#else
     // Find an open channel
     for (cnum=0; cnum<numChannels && channels[cnum].sfxinfo; cnum++)
         if (origin && channels[cnum].origin == origin &&
@@ -552,6 +589,7 @@ static int16_t S_getChannel(void __far* origin, const sfxinfo_t *sfxinfo, boolea
         else
             S_StopChannel(cnum);        // Otherwise, kick out lower priority.
     }
+#endif
 
     c = &channels[cnum];              // channel is decided to be cnum.
     c->sfxinfo   = sfxinfo;

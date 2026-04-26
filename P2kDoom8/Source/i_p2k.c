@@ -41,6 +41,7 @@
 #include <dl_keypad.h>
 #include <dal.h>
 #include <filesystem.h>
+#include <mme.h>
 #include <uis.h>
 #include <canvas.h>
 #include <mem.h>
@@ -56,6 +57,7 @@
 #include "compiler.h"
 
 #include "i_system.h"
+#include "i_sound.h"
 #include "i_video.h"
 #include "m_random.h"
 #include "r_defs.h"
@@ -118,8 +120,13 @@ typedef struct {
 #endif
 
 typedef struct {
+#if defined(QWERTY_KEYBOARD_64BIT)
+	UINT64 pressed;
+	UINT64 released;
+#else
 	UINT32 pressed;
 	UINT32 released;
+#endif
 } APP_KEYBOARD_T;
 
 typedef struct {
@@ -166,7 +173,11 @@ static UINT32 DeleteDialog(APPLICATION_T *app);
 static UINT32 SetLoopTimer(APPLICATION_T *app, UINT32 period);
 
 static UINT32 CheckKeyboard(EVENT_STACK_T *ev_st, APPLICATION_T *app);
+#if defined(QWERTY_KEYBOARD_64BIT)
+static UINT32 ProcessKeyboard(EVENT_STACK_T *ev_st, APPLICATION_T *app, UINT64 key, BOOL pressed);
+#else
 static UINT32 ProcessKeyboard(EVENT_STACK_T *ev_st, APPLICATION_T *app, UINT32 key, BOOL pressed);
+#endif
 
 static UINT32 HandleEventTimerExpired(EVENT_STACK_T *ev_st, APPLICATION_T *app);
 static void FPS_Meter(void);
@@ -225,6 +236,7 @@ static ldrElf *g_app_elf = NULL;
 #endif
 
 WCHAR *g_res_file_path_ptr;
+IFACE_DATA_T g_p2k_iface_data;
 static WCHAR g_res_file_path[FS_MAX_URI_NAME_LENGTH];
 
 static const WCHAR *g_msg_title = L"P2kDoom8";
@@ -407,6 +419,12 @@ static EVENT_HANDLER_ENTRY_T g_state_main_hdls[] = {
 	{ EV_DONE, ApplicationStop },
 	{ EV_DIALOG_DONE, ApplicationStop },
 	{ EV_TIMER_EXPIRED, HandleEventTimerExpired },
+	{ DL_MMSP_MEDIA_OPEN_SUCCESS, I_HandleSoundEvent },
+	{ DL_MMSP_MEDIA_OPEN_FAILED, I_HandleSoundEvent },
+	{ DL_MMSP_MEDIA_COMPLETE, I_HandleSoundEvent },
+	{ DL_MMSP_MEDIA_ERROR, I_HandleSoundEvent },
+	{ DL_MMSP_MEDIA_CLOSE_COMPLETE, I_HandleSoundEvent },
+	{ DL_MMSP_MEDIA_STOP_COMPLETE, I_HandleSoundEvent },
 	{ STATE_HANDLERS_END, NULL }
 };
 
@@ -580,6 +598,8 @@ static UINT32 ApplicationStart(EVENT_STACK_T *ev_st, REG_ID_T reg_id, void *reg_
 #endif
 
 		status |= APP_Start(ev_st, &appi->app, APP_STATE_MAIN, g_state_table_hdls, ApplicationStop, g_app_name, 0);
+		g_p2k_iface_data.port = appi->app.port;
+		g_p2k_iface_data.handle = 0;
 
 #if defined(EP2)
 		g_app_elf.app = (APPLICATION_T *) appi;
@@ -645,6 +665,9 @@ static UINT32 HandleStateEnter(EVENT_STACK_T *ev_st, APPLICATION_T *app, ENTER_S
 	DeleteDialog(app);
 
 	port = app->port;
+	g_p2k_iface_data.port = port;
+	g_p2k_iface_data.handle = 0;
+
 	app_state = app->state;
 	dialog = DialogType_None;
 
@@ -731,10 +754,14 @@ static UINT32 SetLoopTimer(APPLICATION_T *app, UINT32 period) {
 }
 
 static UINT32 CheckKeyboard(EVENT_STACK_T *ev_st, APPLICATION_T *app) {
+#if defined(QWERTY_KEYBOARD_64BIT)
+	UINT64 key;
+#else
 	UINT32 key;
+#endif
 	APP_INSTANCE_T *appi;
 
-	key = 0x00080000;
+	key = MULTIKEY_JOY_OK;
 
 	appi = (APP_INSTANCE_T *) app;
 	appi->keys.released = appi->keys.pressed;
@@ -759,8 +786,21 @@ static UINT32 CheckKeyboard(EVENT_STACK_T *ev_st, APPLICATION_T *app) {
 
 static evtype_t modkey_state = ev_keyup;
 
+#if defined(QWERTY_KEYBOARD_64BIT)
+static UINT32 ProcessKeyboard(EVENT_STACK_T *ev_st, APPLICATION_T *app, UINT64 key, BOOL pressed) {
+#else
 static UINT32 ProcessKeyboard(EVENT_STACK_T *ev_st, APPLICATION_T *app, UINT32 key, BOOL pressed) {
-#if defined(KEYS_PORTRAIT)
+#endif
+#if defined(QWERTY) || defined(QWERTY_KEYBOARD)
+	#define KK_2 MULTIKEY_2
+	#define KK_UP MULTIKEY_UP
+	#define KK_4 MULTIKEY_4
+	#define KK_LEFT MULTIKEY_LEFT
+	#define KK_6 MULTIKEY_6
+	#define KK_RIGHT MULTIKEY_RIGHT
+	#define KK_8 MULTIKEY_8
+	#define KK_DOWN MULTIKEY_DOWN
+#elif defined(KEYS_PORTRAIT)
 	#define KK_2 MULTIKEY_2
 	#define KK_UP MULTIKEY_UP
 	#define KK_4 MULTIKEY_4
